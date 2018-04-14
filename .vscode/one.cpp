@@ -1,41 +1,50 @@
-#include<sys/types.h>
-#include<sys/stat.h>
-#include<unistd.h>
-#include<fcntl.h>
-#include<stdio.h>
-#include<stdlib.h>
-#include<errno.h>
-#include<string.h>
-#include<signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+
 #define ERR_EXIT(m) \
     do { \
         perror(m); \
         exit(EXIT_FAILURE); \
     } while(0)
 
-int main(int argc, char *argv[])
+int main(int argc, char** argv)
 {
-    int pipefd[2];
-    if (pipe(pipefd) == -1)
-        ERR_EXIT("pipe error");
+    FILE *rdFP = NULL;
+    FILE *writeFP = NULL;
+    char buf[BUFSIZ + 1];
+    int num_of_chars = 0;
 
-    pid_t pid;
-    pid = fork();
-    if (pid == -1)
-        ERR_EXIT("fork error");
+    memset(buf, '\0', sizeof(buf));
 
-    if (pid == 0)
+    //打开ls作为读接口
+    rdFP = popen("ls -l", "r");
+    if(!rdFP)
     {
-        close(pipefd[0]);
-        write(pipefd[1], "hello", 5);
-        close(pipefd[1]);
-        exit(EXIT_SUCCESS);
+        ERR_EXIT("failed to open read pipe");
     }
-
-    close(pipefd[1]);
-    char buf[10] = {0};
-    read(pipefd[0], buf, 10);
-    printf("buf=%s\n", buf);
-
-    return 0;
+    //打开grep作为写接口
+  wrFP = popen("grep \\\\-rw-rw-r--", "w");
+    if(!wrFP)
+    {
+        ERR_EXIT("failed to open write pipe");
+    }
+    if(rdFP && wrFP)
+    {
+        //从ls读取BUFSIZ字符
+        num_of_chars = fread(buf, sizeof(char), BUFSIZ, rdFP);
+        while(num_of_chars > 0)
+        {
+            buf[num_of_chars] = '\0';
+            //把数据写入grep
+            fwrite(buf, sizeof(char), num_of_chars, wrFP);
+            //循环读取数据直到读完所有数据
+            num_of_chars = fread(buf, sizeof(char), BUFSIZ, rdFP);
+        }
+        //关闭文件流
+        pclose(rdFP);
+        pclose(wrFP);
+    }
+    exit(EXIT_SUCCESS);
 }
