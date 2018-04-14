@@ -1,7 +1,8 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
-
+#include <string.h>
+#include <stdlib.h>
 int main()
 {
         int     fd[2], nbytes;
@@ -20,7 +21,7 @@ int main()
     //父进程发送数据给子进程，父进程关fd[0]，子进程关fd[1]
     //父进程从子进程获得数据，父进程关fd[1]，子进程关fd[2]
 
-    //本例为父进程发送数据给子进程
+    //本例为子进程发送数据给父进程，并在父进程中进行打印
        if(childpid == 0)
         {
                 /* Child process closes up input side of pipe */
