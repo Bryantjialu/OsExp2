@@ -1,43 +1,43 @@
-#include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
 
 int main()
 {
-    int nBytes;
-    int fd[2]; //fd[0] for reading fd[1] for wrinting
-    pid_t pid;
-    char string[] = "'hello world' from parent\n"；
-    char line[100];
+        int     fd[2], nbytes;
+        pid_t   childpid;
+        char    string[] = "Hello, world!\n";
+        char    readbuffer[80];
 
-    if (pipe(fd) < 0)
-    { //创建管道
-        printf("error:create pipe in %d", __LINE__);
-        exit(1);
-    }
+        pipe(fd);
+        
+        if((childpid = fork()) == -1)
+        {
+                perror("fork");
+                exit(1);
+        }
 
     //父进程发送数据给子进程，父进程关fd[0]，子进程关fd[1]
     //父进程从子进程获得数据，父进程关fd[1]，子进程关fd[2]
 
     //本例为父进程发送数据给子进程
-    if ((pid == fork()) < 0)
-    {
-        print("error:fork in %d", __LINE__);
-        exit(1);
-    }
-    else if (pid > 0)   //parent process
-    {         
-        //close up input side of pipe        
-        close(fd[0]); 
-        //send "string" through the output side of pipe
-        write(fd[1],string,strlen(string)+1);
-        exit(0);
-    }
-    else    //child process
-    {       
-        //close up output side of pipe          
-        close(fd[1]); 
-        nBytes = read(fd[0], line, sizeof(line));
-        write(1,line,nBytes);
-    }
+       if(childpid == 0)
+        {
+                /* Child process closes up input side of pipe */
+                close(fd[0]);
+
+                /* Send "string" through the output side of pipe */
+                write(fd[1], string, (strlen(string)+1));
+                exit(0);
+        }
+        else
+        {
+                /* Parent process closes up output side of pipe */
+                close(fd[1]);
+
+                /* Read in a string from the pipe */
+                nbytes = read(fd[0], readbuffer, sizeof(readbuffer));
+                printf("Received string: %s", readbuffer);
+        }
     return 0;
 }
