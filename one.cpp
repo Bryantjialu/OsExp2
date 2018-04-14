@@ -1,50 +1,43 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
+#include <stdio.h>
 
-#define ERR_EXIT(m) \
-    do { \
-        perror(m); \
-        exit(EXIT_FAILURE); \
-    } while(0)
-
-int main(int argc, char** argv)
+int main()
 {
-    FILE *rdFP = NULL;
-    FILE *writeFP = NULL;
-    char buf[BUFSIZ + 1];
-    int num_of_chars = 0;
+    int nBytes;
+    int fd[2]; //fd[0] for reading fd[1] for wrinting
+    pid_t pid;
+    char string[] = "'hello world' from parent\n"；
+    char line[100];
 
-    memset(buf, '\0', sizeof(buf));
+    if (pipe(fd) < 0)
+    { //创建管道
+        printf("error:create pipe in %d", __LINE__);
+        exit(1);
+    }
 
-    //打开ls作为读接口
-    rdFP = popen("ls -l", "r");
-    if(!rdFP)
+    //父进程发送数据给子进程，父进程关fd[0]，子进程关fd[1]
+    //父进程从子进程获得数据，父进程关fd[1]，子进程关fd[2]
+
+    //本例为父进程发送数据给子进程
+    if ((pid == fork()) < 0)
     {
-        ERR_EXIT("failed to open read pipe");
+        print("error:fork in %d", __LINE__);
+        exit(1);
     }
-    //打开grep作为写接口
-  wrFP = popen("grep \\\\-rw-rw-r--", "w");
-    if(!wrFP)
-    {
-        ERR_EXIT("failed to open write pipe");
+    else if (pid > 0)   //parent process
+    {         
+        //close up input side of pipe        
+        close(fd[0]); 
+        //send "string" through the output side of pipe
+        write(fd[1],string,strlen(string)+1);
+        exit(0);
     }
-    if(rdFP && wrFP)
-    {
-        //从ls读取BUFSIZ字符
-        num_of_chars = fread(buf, sizeof(char), BUFSIZ, rdFP);
-        while(num_of_chars > 0)
-        {
-            buf[num_of_chars] = '\0';
-            //把数据写入grep
-            fwrite(buf, sizeof(char), num_of_chars, wrFP);
-            //循环读取数据直到读完所有数据
-            num_of_chars = fread(buf, sizeof(char), BUFSIZ, rdFP);
-        }
-        //关闭文件流
-        pclose(rdFP);
-        pclose(wrFP);
+    else    //child process
+    {       
+        //close up output side of pipe          
+        close(fd[1]); 
+        nBytes = read(fd[0], line, sizeof(line));
+        write(1,line,nBytes);
     }
-    exit(EXIT_SUCCESS);
+    return 0;
 }
